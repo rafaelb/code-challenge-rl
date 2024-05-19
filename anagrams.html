@@ -7,9 +7,19 @@
   <body>
     <div id="app">
       <h1>Anagram Finder</h1>
-      <label for="input">Input:</label>
-      <input id="input" v-model="input" />
-      <!-- results here -->
+      <div v-if="!allowInput">
+      Loading...
+      </div>
+      <div v-else>
+        <label for="input">Input:</label>
+        <input id="input" v-model="input"/>
+          <div v-if="input">
+            <p v-if="items.length === 0">No anagrams found</p>
+            <li v-for="item in items" v-else>
+              {{ item }}
+            </li>
+          </div>
+      </div>
     </div>
   </body>
 </html>
@@ -18,14 +28,46 @@
   import { createApp, ref, onMounted, watch } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 
   const wordListURL = "https://raw.githubusercontent.com/dwyl/english-words/master/words.txt";
-
+  const anagramMap = {};
+  const wordKeyMap = {};
   createApp({
     setup() {
       const input = ref("");
+      const items = ref([])
+      const allowInput = ref(false);
+      watch(input, async (newInput) => {
+        const sortedInput = newInput.split('').sort().join('');
+        const wordKey = sortedInput.toLowerCase();
+        const alphanumericKey = wordKey.replace(/[^a-z0-9]/gi, '');
+        if (anagramMap[alphanumericKey]) {
+          items.value = anagramMap[alphanumericKey];
+        } else {
+          items.value = [];
+        }
+      });
+      onMounted(async () => {
+        const response = await fetch(wordListURL);
+        const wordList = await response.text();
+        const wordListArray = wordList.split('\n');
+        wordListArray.forEach(word => {
+          const wordKey = word.toLowerCase().split('').sort().join('');
+          let alphanumericKey
+          if (wordKeyMap[wordKey]) {
+            alphanumericKey = wordKeyMap[wordKey];
+          } else {
+            alphanumericKey = wordKey.replace(/[^a-z0-9]/gi, '');
+            wordKeyMap[wordKey] = alphanumericKey;
+          }
+          if (anagramMap[alphanumericKey]) {
+            anagramMap[alphanumericKey].push(word);
+          } else {
+            anagramMap[alphanumericKey] = [word];
+          }
+        })
+        allowInput.value = true;
+       });
 
-      onMounted(async () => { });
-
-      return { input };
+      return { input, items, allowInput };
     }
   }).mount('#app')
 </script>
